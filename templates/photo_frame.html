@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1080px; height: 1350px; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: #fff;
+         -webkit-font-smoothing: antialiased; }
+  .frame { width: 1080px; height: 1350px; display: flex; flex-direction: column; background: #fff; }
+  .photo { width: 1080px; height: 880px; background-size: cover; background-position: center;
+           background-repeat: no-repeat; background-color: #11161c; }
+  .accent { height: 8px; width: 100%; background: #0b8a4a; }
+  .panel { flex: 1; padding: 46px 54px 40px; display: flex; flex-direction: column; }
+  .kicker { font-size: 19px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+            color: #0b8a4a; margin-bottom: 18px; }
+  .headline { font-size: 44px; font-weight: 800; line-height: 1.22; color: #11161c;
+              display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .spacer { flex: 1; }
+  .attr { font-size: 19px; font-style: italic; color: #8b8f94; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <div class="photo" id="photo"></div>
+    <div class="accent"></div>
+    <div class="panel">
+      <div class="kicker" id="kicker"></div>
+      <div class="headline" id="headline"></div>
+      <div class="spacer"></div>
+      <div class="attr" id="attr"></div>
+    </div>
+  </div>
+<script>
+  (function () {
+    var d = window.DATA || {};
+    if (d.image) document.getElementById("photo").style.backgroundImage = "url('" + d.image + "')";
+    document.getElementById("kicker").textContent = d.kicker || "";
+    document.getElementById("headline").textContent = d.headline || "";
+    document.getElementById("attr").textContent = d.attribution || "";
+  })();
+</script>
+</body>
+</html>

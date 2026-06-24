@@ -56,6 +56,30 @@ def _thesis_fallback(item: dict, img: dict, out_dir: str, stamp: str) -> str:
         return ""
 
 
+def _framed_photo(real_path: str, item: dict, img: dict, out_dir: str, stamp: str) -> str:
+    """Wrap a found image in a LinkedIn-perfect 4:5 frame with a readable headline + source band.
+
+    Falls back to the raw image if framing fails, so we never lose a usable creative.
+    """
+    out = os.path.join(out_dir, f"card-{stamp}.png")
+    headline = (img.get("headline") or item.get("title") or "").strip()
+    src = (item.get("source") or "").lstrip("@")
+    kicker = (img.get("kicker") or src or "NEWS").upper()
+    try:
+        data = {
+            "image": media.to_data_uri(real_path),
+            "headline": headline,
+            "kicker": kicker,
+            "attribution": img.get("attribution", ""),
+        }
+        card.render("photo_frame", data, out)
+        print(f"  image [photo_frame]: {out}  (source: {real_path})")
+        return out
+    except Exception as e:
+        print(f"  [warn] framing failed ({e}); using raw source image")
+        return real_path
+
+
 def _make_image(template: str, img: dict, item: dict, out_dir: str, stamp: str, cfg: dict) -> str:
     """Route to the right image source: his data card, the real source creative, or a fallback.
 
@@ -69,12 +93,11 @@ def _make_image(template: str, img: dict, item: dict, out_dir: str, stamp: str, 
     if template == "tweet_card" and not img.get("text") and item.get("tweet"):
         img.update({k: item["tweet"].get(k, "") for k in ("name", "handle", "text")})
 
-    # 1. story is visual: use the real source creative
+    # 1. story is visual: use the real source creative, wrapped in a clean frame
     if template in ("photo", "none", "") and use_real:
         real = media.fetch_source_image(item, os.path.join(out_dir, f"src-{stamp}"))
         if real:
-            print(f"  image [photo]: {real}")
-            return real
+            return _framed_photo(real, item, img, out_dir, stamp)
         print("  [info] no source creative found; using thesis card")
         return _thesis_fallback(item, img, out_dir, stamp)
 
@@ -87,12 +110,11 @@ def _make_image(template: str, img: dict, item: dict, out_dir: str, stamp: str, 
         except Exception as e:
             print(f"  [warn] {template} render failed: {e}; trying source creative")
 
-    # 3. data card failed or unknown template: try the real creative, then thesis
+    # 3. data card failed or unknown template: try the real creative (framed), then thesis
     if use_real:
         real = media.fetch_source_image(item, os.path.join(out_dir, f"src-{stamp}"))
         if real:
-            print(f"  image [photo-fallback]: {real}")
-            return real
+            return _framed_photo(real, item, img, out_dir, stamp)
     return _thesis_fallback(item, img, out_dir, stamp)
 
 

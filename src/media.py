@@ -9,10 +9,19 @@ pulls that creative for the chosen item:
 Returns a local file path, or "" if nothing usable was found. Always best-effort:
 callers fall back to a data card on "".
 """
+import base64
 import os
 import re
 
 import requests
+
+
+def to_data_uri(path: str) -> str:
+    """Read a local image file into a base64 data URI (for embedding in the frame template)."""
+    ext = os.path.splitext(path)[1].lower().lstrip(".") or "jpeg"
+    mime = "jpeg" if ext in ("jpg", "jpeg") else ext
+    with open(path, "rb") as f:
+        return f"data:image/{mime};base64," + base64.b64encode(f.read()).decode()
 
 _UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36"}

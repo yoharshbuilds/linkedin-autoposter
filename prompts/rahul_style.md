@@ -47,7 +47,9 @@ If the source lacks enough hard numbers for a data template AND has no strong vi
 - "tweet_card"     -> when the source is itself a notable tweet/announcement worth quoting.
   fields: {template, name:"Author", handle:"handle", text:"the quoted text", meta:"optional date / metric"}
 - "photo"          -> use the source's REAL image (founder/team photo, product lineup, brand creative,
-  podcast still). Pick this when the story is visual, not numeric. fields: {template:"photo"}
+  podcast still). Pick this when the story is visual, not numeric. It gets wrapped in a clean 4:5 frame
+  with a headline band, so give it a punchy caption and a short label.
+  fields: {template:"photo", headline:"a punchy 6-12 word caption for the framed image", kicker:"SHORT LABEL e.g. FUNDING / IPO / PRODUCT"}
 - "thesis_card"    -> fallback / single big number.
   fields: {template, title, stat, subtext}
 Do NOT include any em dashes in image text. Do NOT use the "star" glyph; write "4.3 stars".

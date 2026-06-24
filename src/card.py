@@ -26,11 +26,14 @@ def _height(template: str, data: dict) -> int:
     if template == "tweet_card":
         text_len = len((data.get("text") or ""))
         return 230 + (text_len // 38) * 32
+    if template == "photo_frame":
+        return 1350  # fixed 4:5 LinkedIn portrait
     return 480
 
 
 _WIDTH = {"returns_table": 920, "bar_chart": 1040, "app_showdown": 805,
-          "thesis_card": 920, "calc_worksheet": 860, "tweet_card": 720}
+          "thesis_card": 920, "calc_worksheet": 860, "tweet_card": 720,
+          "photo_frame": 1080}
 
 
 def render(template: str, data: dict, out_path: str, width: int = 0) -> str:
