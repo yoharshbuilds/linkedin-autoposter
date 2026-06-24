@@ -48,7 +48,7 @@ def score_candidates(items: list, cfg: dict, top_n: int = 12, recent_titles: lis
         f"CANDIDATE NEWS ITEMS:\n{listing}\n\n"
         "Score EACH item the way Rahul Mathur would, using the rubric. Return STRICT JSON: "
         '{\"picks\":[{\"i\":<index>,\"score\":<0-10>,\"angle\":\"the one-line angle Rahul would take\",'
-        '\"template\":\"returns_table|bar_chart|app_showdown|calc_worksheet|thesis_card|photo|none\"}]} '
+        '\"template\":\"returns_table|bar_chart|calc_worksheet|app_showdown|tweet_card|photo|thesis_card|none\"}]} '
         "Include ALL items, sorted by score descending."
     )
     raw = llm.chat(cfg["text_model"], [

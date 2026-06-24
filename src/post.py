@@ -126,12 +126,33 @@ def _playwright_post(post_text, image_path, cfg):
 # ---------------- dispatcher ----------------
 
 def publish(content: dict, cfg: dict) -> list:
-    """content = {post_text, tweet_text, image}. Posts to each target in cfg['post_targets']."""
+    """content = {post_text, tweet_text, image}. Posts to all targets SIMULTANEOUSLY.
+
+    LinkedIn (Playwright) and Twitter (twitter-cli) are independent subsystems, so we
+    fire them in parallel threads to publish at the same moment instead of one after
+    the other.
+    """
+    import threading
+
     targets = cfg.get("post_targets", ["linkedin"])
-    results = []
+    jobs = []
     if "linkedin" in targets:
-        results.append(post_linkedin(content["post_text"], content.get("image", ""), cfg))
+        jobs.append(("linkedin", lambda: post_linkedin(content["post_text"], content.get("image", ""), cfg)))
     if "twitter" in targets:
         tweet = content.get("tweet_text") or content["post_text"]
-        results.append(post_twitter(tweet, content.get("image", ""), cfg))
+        jobs.append(("twitter", lambda: post_twitter(tweet, content.get("image", ""), cfg)))
+
+    results = [None] * len(jobs)
+
+    def _run(i, fn, name):
+        try:
+            results[i] = fn()
+        except Exception as e:
+            results[i] = {"target": name, "mode": "live", "ok": False, "detail": f"crashed: {e}"}
+
+    threads = [threading.Thread(target=_run, args=(i, fn, name)) for i, (name, fn) in enumerate(jobs)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
     return results

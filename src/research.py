@@ -64,6 +64,7 @@ def from_rss(cfg: dict) -> list:
                 "url": e.get("link"),
                 "source": source,
                 "via": "rss",
+                "image_url": _rss_image(e),
                 "published": dt.isoformat() if dt else None,
                 "age_hours": round(_age_hours(dt), 1) if dt else None,
             })
@@ -73,6 +74,22 @@ def from_rss(cfg: dict) -> list:
 def _clean(html: str) -> str:
     import re
     return re.sub(r"<[^>]+>", "", html or "").strip()[:600]
+
+
+def _rss_image(e: dict) -> str:
+    """Best-effort lead image from a feed entry (media:content / thumbnail / enclosure / <img>)."""
+    import re
+    for m in (e.get("media_content") or []):
+        if m.get("url"):
+            return m["url"]
+    for m in (e.get("media_thumbnail") or []):
+        if m.get("url"):
+            return m["url"]
+    for l in (e.get("links") or []):
+        if l.get("rel") == "enclosure" and (l.get("type", "").startswith("image")):
+            return l.get("href", "")
+    m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', e.get("summary", "") or "")
+    return m.group(1) if m else ""
 
 
 def from_twitter(cfg: dict) -> list:
@@ -101,12 +118,16 @@ def from_twitter(cfg: dict) -> list:
             text = p.get("text", "")
             if not _matches(text, cfg["keywords"]):
                 continue
+            photo = next((m.get("url") for m in (p.get("media") or [])
+                          if m.get("type") == "photo" and m.get("url")), "")
             items.append({
                 "title": text[:120],
                 "summary": text,
                 "url": f"https://x.com/{handle}/status/{p.get('id')}",
                 "source": f"@{handle}",
                 "via": "twitter",
+                "image_url": photo,
+                "tweet": {"name": handle, "handle": handle, "text": text},
                 "views": (p.get("metrics") or {}).get("views", 0),
                 "published": dt.isoformat() if dt else None,
                 "age_hours": round(_age_hours(dt), 1) if dt else None,

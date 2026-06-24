@@ -15,5 +15,6 @@ state/posted.json
 # large raw research dumps (keep the cleaned artifacts only)
 reference/imgs/
 reference/rahul_raw.json
+reference/rahul_raw80.json
 reference/rahul_raw90.json
 reference/rahul_70.json

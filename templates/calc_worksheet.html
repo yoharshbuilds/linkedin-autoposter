@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #ffffff; color: #1a1a1a; padding: 34px 40px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 26px; font-weight: 700; color: #111; margin-bottom: 6px; }
+  .attr { font-size: 13px; font-style: italic; color: #6b6b6b; margin-bottom: 18px; }
+  .premise { font-size: 15.5px; font-style: italic; color: #333; line-height: 1.5; margin-bottom: 14px; }
+  .intro { font-size: 14.5px; color: #333; line-height: 1.5; margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; margin: 4px 0 22px; }
+  th, td { border: 1px solid #cfcfcf; padding: 9px 12px; font-size: 13.5px; text-align: left; }
+  th { background: #f4f5f7; font-weight: 700; color: #111; }
+  tr.hl td { color: #c2410c; font-weight: 600; background: #fff7ed; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .sec { margin-bottom: 18px; }
+  .sec h2 { font-size: 19px; font-weight: 700; color: #111; margin-bottom: 8px; }
+  .sec p { font-size: 14.5px; color: #333; line-height: 1.55; margin-bottom: 8px; }
+  .sec p.concl { font-weight: 700; color: #111; }
+  .sec p.math { font-family: "SFMono-Regular", Menlo, monospace; font-size: 13.5px; color: #1a1a1a; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+<script>
+  (function () {
+    var d = window.DATA || {};
+    var r = document.getElementById("root");
+    var h = "";
+    h += '<h1>' + (d.title || "Calculations") + '</h1>';
+    if (d.attribution) h += '<div class="attr">' + d.attribution + '</div>';
+    if (d.premise) h += '<div class="premise">' + d.premise + '</div>';
+    if (d.intro) h += '<div class="intro">' + d.intro + '</div>';
+
+    if (d.table && d.table.rows) {
+      h += '<table>';
+      if (d.table.columns) {
+        h += '<tr>';
+        d.table.columns.forEach(function (c) { h += '<th>' + c + '</th>'; });
+        h += '</tr>';
+      }
+      d.table.rows.forEach(function (row) {
+        var cells = row.cells || row;
+        h += '<tr' + (row.highlight ? ' class="hl"' : '') + '>';
+        cells.forEach(function (c, i) {
+          h += '<td class="' + (i ? 'num' : '') + '">' + c + '</td>';
+        });
+        h += '</tr>';
+      });
+      h += '</table>';
+    }
+
+    (d.sections || []).forEach(function (s) {
+      h += '<div class="sec">';
+      if (s.heading) h += '<h2>' + s.heading + '</h2>';
+      (s.lines || []).forEach(function (line) {
+        var cls = "";
+        if (typeof line === "object") { cls = line.kind || ""; line = line.text; }
+        h += '<p class="' + cls + '">' + line + '</p>';
+      });
+      if (s.conclusion) h += '<p class="concl">' + s.conclusion + '</p>';
+      h += '</div>';
+    });
+    r.innerHTML = h;
+  })();
+</script>
+</body>
+</html>

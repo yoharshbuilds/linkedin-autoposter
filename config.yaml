@@ -6,8 +6,8 @@ image_model: "openai/gpt-5-image-mini"          # stat-card generator
 
 # --- Voice reference ---
 reference_handle: "Rahul_J_Mathur"
-fewshot_file: "reference/rahul_fewshot_top12.json"
-fewshot_count: 5
+fewshot_file: "reference/rahul_fewshot.json"   # rebuilt from his last 50 posts (May-Jun 2026)
+fewshot_count: 10
 
 # --- Topics we target (mirrors Rahul's beat) ---
 topics:
@@ -46,7 +46,9 @@ hashtags: ["#startups", "#india", "#venturecapital", "#ai"]
 # --- Posting ---
 post_targets: [linkedin, twitter]   # where to publish each post
 twitter_max_chars: 280              # non-premium cap; tweet_text is trimmed to this
-dry_run: true            # true = save preview to out/, do NOT post. Flip to false to go live.
+dry_run: false           # LIVE: posts to linkedin + twitter. (set env DRY_RUN=1 for a no-post test run)
+live_from: "2026-06-25"  # do NOT post before this date (runs before it are previews only). Go live tomorrow.
+use_source_images: true  # for visual stories, attach the source's real creative (founder photo, product shot, brand hero, tweet)
 image_style: >-
   Clean professional LinkedIn infographic stat-card. Deep navy background (#0A1A2F).
   Bold headline in white, one large highlighted number in gold (#F2B544), short subtext in light gray.

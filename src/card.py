@@ -18,10 +18,19 @@ def _height(template: str, data: dict) -> int:
         return 150 + apps * 235
     if template == "bar_chart":
         return 560
+    if template == "calc_worksheet":
+        trows = len((data.get("table") or {}).get("rows", []) or [])
+        secs = data.get("sections", []) or []
+        sec_lines = sum(len(s.get("lines", []) or []) + 2 for s in secs)
+        return 200 + trows * 44 + sec_lines * 30
+    if template == "tweet_card":
+        text_len = len((data.get("text") or ""))
+        return 230 + (text_len // 38) * 32
     return 480
 
 
-_WIDTH = {"returns_table": 920, "bar_chart": 1040, "app_showdown": 805, "thesis_card": 920}
+_WIDTH = {"returns_table": 920, "bar_chart": 1040, "app_showdown": 805,
+          "thesis_card": 920, "calc_worksheet": 860, "tweet_card": 720}
 
 
 def render(template: str, data: dict, out_path: str, width: int = 0) -> str:

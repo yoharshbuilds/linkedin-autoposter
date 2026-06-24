@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #f3f4f6; padding: 28px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .card {
+    background: #fff; border: 1px solid #e2e3e6; border-radius: 18px;
+    padding: 24px 26px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .head { display: flex; align-items: center; margin-bottom: 16px; }
+  .avatar {
+    width: 50px; height: 50px; border-radius: 50%; margin-right: 13px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 20px; background: #0b66c2;
+  }
+  .who { line-height: 1.25; }
+  .name { font-weight: 700; font-size: 16.5px; color: #0f1419; }
+  .handle { font-size: 14.5px; color: #536471; }
+  .verified { color: #1d9bf0; font-size: 15px; margin-left: 4px; }
+  .text { font-size: 22px; line-height: 1.42; color: #0f1419; white-space: pre-wrap; }
+  .meta { margin-top: 18px; padding-top: 14px; border-top: 1px solid #eff0f1;
+          font-size: 13.5px; color: #536471; }
+  .meta b { color: #0f1419; }
+  .attr { margin-top: 12px; font-size: 12px; font-style: italic; color: #8b8f94; }
+</style>
+</head>
+<body>
+  <div class="card" id="root"></div>
+<script>
+  (function () {
+    var d = window.DATA || {};
+    var name = d.name || "News";
+    var handle = (d.handle || "news").replace(/^@/, "");
+    var initials = name.split(/\s+/).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase();
+    var r = document.getElementById("root");
+    var h = "";
+    h += '<div class="head">';
+    h += '  <div class="avatar"' + (d.avatarBg ? ' style="background:' + d.avatarBg + '"' : '') + '>' + initials + '</div>';
+    h += '  <div class="who"><div class="name">' + name + (d.verified ? '<span class="verified">✔</span>' : '') + '</div>';
+    h += '  <div class="handle">@' + handle + '</div></div>';
+    h += '</div>';
+    h += '<div class="text">' + (d.text || "") + '</div>';
+    if (d.meta) h += '<div class="meta">' + d.meta + '</div>';
+    if (d.attribution) h += '<div class="attr">' + d.attribution + '</div>';
+    r.innerHTML = h;
+  })();
+</script>
+</body>
+</html>

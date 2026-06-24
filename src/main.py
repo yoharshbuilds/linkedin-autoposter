@@ -11,6 +11,7 @@ import research
 import generate
 import scout
 import card
+import media
 import post as post_mod
 import state
 
@@ -35,10 +36,78 @@ def load_cfg():
         return yaml.safe_load(f)
 
 
+DATA_CARDS = {"returns_table", "bar_chart", "calc_worksheet", "app_showdown",
+              "tweet_card", "thesis_card"}
+
+
+def _thesis_fallback(item: dict, img: dict, out_dir: str, stamp: str) -> str:
+    """Last-resort card built from whatever we have, so a post always has an image."""
+    path = os.path.join(out_dir, f"card-{stamp}.png")
+    data = {
+        "title": (img.get("title") or item.get("title", ""))[:90],
+        "stat": img.get("stat", ""),
+        "subtext": img.get("subtext") or item.get("source", ""),
+        "attribution": img.get("attribution", ""),
+    }
+    try:
+        return card.render("thesis_card", data, path)
+    except Exception as e:
+        print(f"  [warn] thesis fallback failed: {e}")
+        return ""
+
+
+def _make_image(template: str, img: dict, item: dict, out_dir: str, stamp: str, cfg: dict) -> str:
+    """Route to the right image source: his data card, the real source creative, or a fallback.
+
+    Order of preference honors what the editorial filter chose, but always degrades
+    gracefully so a post never goes out without an image.
+    """
+    use_real = cfg.get("use_source_images", True)
+    path = os.path.join(out_dir, f"card-{stamp}.png")
+
+    # tweet_card with no quoted text but a source tweet -> fill from the item
+    if template == "tweet_card" and not img.get("text") and item.get("tweet"):
+        img.update({k: item["tweet"].get(k, "") for k in ("name", "handle", "text")})
+
+    # 1. story is visual: use the real source creative
+    if template in ("photo", "none", "") and use_real:
+        real = media.fetch_source_image(item, os.path.join(out_dir, f"src-{stamp}"))
+        if real:
+            print(f"  image [photo]: {real}")
+            return real
+        print("  [info] no source creative found; using thesis card")
+        return _thesis_fallback(item, img, out_dir, stamp)
+
+    # 2. his data card
+    if template in DATA_CARDS:
+        try:
+            card.render(template, img, path)
+            print(f"  image [{template}]: {path}")
+            return path
+        except Exception as e:
+            print(f"  [warn] {template} render failed: {e}; trying source creative")
+
+    # 3. data card failed or unknown template: try the real creative, then thesis
+    if use_real:
+        real = media.fetch_source_image(item, os.path.join(out_dir, f"src-{stamp}"))
+        if real:
+            print(f"  image [photo-fallback]: {real}")
+            return real
+    return _thesis_fallback(item, img, out_dir, stamp)
+
+
 def run():
     load_env()
     cfg = load_cfg()
-    print(f"[{datetime.datetime.now():%Y-%m-%d %H:%M}] gathering news...")
+    # env override: DRY_RUN=1 forces a no-post validation run regardless of config
+    if os.environ.get("DRY_RUN") in ("1", "true", "True"):
+        cfg["dry_run"] = True
+    # go-live gate: stay in preview mode until live_from date (inclusive)
+    live_from = cfg.get("live_from")
+    if live_from and str(datetime.date.today()) < str(live_from) and not cfg.get("dry_run"):
+        cfg["dry_run"] = True
+        print(f"  [gate] before live_from={live_from}; running as preview (no post).")
+    print(f"[{datetime.datetime.now():%Y-%m-%d %H:%M}] gathering news... (dry_run={cfg.get('dry_run')})")
     candidates = research.gather(cfg)
     fresh = [c for c in candidates if not state.seen(c)]
     print(f"  {len(candidates)} candidates, {len(fresh)} fresh")
@@ -76,12 +145,8 @@ def run():
     template = img.get("template", "thesis_card")
     img.setdefault("attribution",
                    f"created by @{os.environ.get('MY_HANDLE','harshshah')} | retrieved {datetime.date.today():%d %b %Y}")
-    try:
-        card.render(template, img, img_path)
-        print(f"  image [{template}]: {img_path}")
-    except Exception as e:
-        print(f"  [warn] image render failed: {e}")
-        img_path = ""
+
+    img_path = _make_image(template, img, item, out_dir, stamp, cfg)
 
     content = {"post_text": post_text, "tweet_text": data.get("tweet_text", post_text), "image": img_path}
     results = post_mod.publish(content, cfg)
@@ -90,9 +155,11 @@ def run():
         ok_any = ok_any or r["ok"]
         print(f"  {r['target']} [{r['mode']}]: {'OK' if r['ok'] else 'FAILED'} - {r['detail']}")
 
-    if ok_any:
+    if ok_any and not cfg.get("dry_run"):
         state.record(item, post_text, img_path, datetime.datetime.now(datetime.timezone.utc).isoformat())
         print("  recorded in state.")
+    elif cfg.get("dry_run"):
+        print("  dry run: not recorded (live run can still post this).")
 
 
 if __name__ == "__main__":
