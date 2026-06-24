@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- macOS launchd job: runs the auto-poster twice daily at 09:30 and 18:30 local time.
+     Install:  cp deploy/com.getbelong.linkedin-autopost.plist ~/Library/LaunchAgents/
+               launchctl load ~/Library/LaunchAgents/com.getbelong.linkedin-autopost.plist
+     Edit the absolute paths below to match your machine first. -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.getbelong.linkedin-autopost</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/harsh.shah/linkedin-autoposter/run.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>32</integer></dict>
+        <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>33</integer></dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/harsh.shah/linkedin-autoposter/out/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/harsh.shah/linkedin-autoposter/out/launchd.err.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

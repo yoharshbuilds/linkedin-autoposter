@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Roboto','Helvetica Neue',Arial,sans-serif; background:#fff; }
+  #card { width:745px; padding:26px 30px 30px; background:#fff; }
+  .title { font-size:21px; font-weight:700; color:#202124; line-height:1.3; }
+  .attr { font-size:13.5px; font-style:italic; color:#5f6368; margin-top:6px; margin-bottom:26px; }
+  .app { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; }
+  .left { flex:1; }
+  .name { font-size:29px; font-weight:600; color:#202124; }
+  .dev { font-size:14px; color:#01875f; margin-top:6px; font-weight:500; }
+  .metrics { display:inline-flex; margin-top:14px; border:3px solid var(--box); border-radius:4px; }
+  .metric { padding:8px 22px 6px; text-align:center; }
+  .metric + .metric { border-left:1px solid #dadce0; }
+  .metric .big { font-size:14px; color:#5f6368; font-weight:600; }
+  .metric .sub { font-size:11.5px; color:#5f6368; margin-top:3px; }
+  .actions { display:flex; align-items:center; gap:18px; margin-top:18px; }
+  .install { background:#01875f; color:#fff; border:none; border-radius:6px; padding:9px 34px; font-size:14px; font-weight:600; }
+  .icns { color:#01875f; font-size:18px; display:flex; gap:16px; }
+  .avail { font-size:12.5px; color:#5f6368; margin-top:14px; }
+  .icon { width:118px; height:118px; border-radius:26px; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:800; color:#fff; flex-shrink:0; }
+</style></head>
+<body><div id="card"></div>
+<script>
+const D = window.DATA || {
+  title: "Swiggy faces the Innovators Dilemma - Toing v/s Ownly (Rapido)",
+  attribution: "created by @harshshah || Source: AppBrain data (retrieved on 19th June 2026)",
+  apps: [
+    { name:"toing - Food Delivery", dev:"Swiggy", rating:"4.3★", reviews:"2.14L reviews",
+      downloads:"1Cr+", box:"#0b8a4a", icon:"toing", iconBg:"#0a8f3c" },
+    { name:"Ownly: Food Delivery App", dev:"Ownly Food Delivery", rating:"4.4★", reviews:"16.1K reviews",
+      downloads:"10L+", box:"#d93025", icon:"✌", iconBg:"#e0457b" }
+  ]
+};
+const appHTML = a => `
+  <div class="app">
+    <div class="left">
+      <div class="name">${a.name}</div>
+      <div class="dev">${a.dev}</div>
+      <div class="metrics" style="--box:${a.box}">
+        <div class="metric"><div class="big">${a.rating}</div><div class="sub">${a.reviews}</div></div>
+        <div class="metric"><div class="big">${a.downloads}</div><div class="sub">Downloads</div></div>
+      </div>
+      <div class="actions">
+        <button class="install">Install</button>
+        <div class="icns"><span>⤴</span><span>🔖</span></div>
+      </div>
+      <div class="avail">▢ This app is available for your device</div>
+    </div>
+    <div class="icon" style="background:${a.iconBg}">${a.icon}</div>
+  </div>`;
+document.getElementById('card').innerHTML =
+  `<div class="title">${D.title}</div><div class="attr">${D.attribution}</div>` +
+  D.apps.map(appHTML).join('');
+</script></body></html>

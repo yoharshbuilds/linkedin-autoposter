@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Arial,sans-serif; background:#fff; }
+  #card { width:880px; min-height:440px; padding:48px 46px; background:#fff;
+          display:flex; flex-direction:column; justify-content:center; }
+  .title { font-size:34px; font-weight:800; color:#1a1a1a; line-height:1.25; }
+  .stat { font-size:72px; font-weight:800; color:#1a7f3c; margin:26px 0 10px; letter-spacing:-1px; }
+  .sub { font-size:20px; color:#444; line-height:1.4; }
+  .attr { font-size:14px; font-style:italic; color:#777; margin-top:34px; }
+</style></head>
+<body><div id="card"></div>
+<script>
+const D = window.DATA || {title:"Thesis", stat:"", subtext:"", attribution:"created by @handle"};
+document.getElementById('card').innerHTML =
+  `<div class="title">${D.title||D.headline||""}</div>`+
+  (D.stat?`<div class="stat">${D.stat}</div>`:"")+
+  (D.subtext?`<div class="sub">${D.subtext}</div>`:"")+
+  `<div class="attr">${D.attribution||""}</div>`;
+</script></body></html>

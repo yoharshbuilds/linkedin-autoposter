@@ -1,0 +1,19 @@
+# secrets / sessions  (NEVER commit)
+.env
+.li-profile/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# runtime output + state
+out/
+state/posted.json
+*.log
+
+# large raw research dumps (keep the cleaned artifacts only)
+reference/imgs/
+reference/rahul_raw.json
+reference/rahul_raw90.json
+reference/rahul_70.json

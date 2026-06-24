@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Arial,sans-serif; background:#fff; }
+  #card { width:1000px; padding:34px 40px 30px; background:#fff; }
+  .title { font-size:30px; font-weight:800; color:#1a1a1a; text-align:center; line-height:1.25; }
+  .attr { font-size:14px; font-style:italic; color:#777; text-align:center; margin:8px 0 26px; }
+  .chart { display:flex; align-items:flex-end; justify-content:space-around; height:430px;
+           border-left:2px solid #333; border-bottom:2px solid #333; padding:0 20px; gap:18px; }
+  .col { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; flex:1; height:100%; }
+  .val { font-size:18px; font-weight:700; color:#1a1a1a; margin-bottom:6px; }
+  .bar { width:78%; background:linear-gradient(180deg,#1a7f3c,#7ed9a0); border-radius:4px 4px 0 0; }
+  .xl { font-size:16px; color:#333; margin-top:10px; font-weight:600; }
+  .ylab { font-size:13px; color:#666; transform:rotate(-90deg); position:absolute; }
+</style></head>
+<body><div id="card"></div>
+<script>
+const D = window.DATA || {title:"Growth", attribution:"created by @handle", bars:[
+  {label:"FY24",value_label:"100",value_num:100},{label:"FY25",value_label:"250",value_num:250}]};
+const mx = Math.max(...D.bars.map(b=>b.value_num||0))||1;
+const cols = D.bars.map(b=>{
+  const h = Math.max(4, Math.round((b.value_num||0)/mx*100));
+  return `<div class="col"><div class="val">${b.value_label||b.value_num}</div>`+
+         `<div class="bar" style="height:${h}%"></div><div class="xl">${b.label}</div></div>`;
+}).join("");
+document.getElementById('card').innerHTML =
+  `<div class="title">${D.title}</div><div class="attr">${D.attribution}</div>`+
+  `<div class="chart">${cols}</div>`;
+</script></body></html>

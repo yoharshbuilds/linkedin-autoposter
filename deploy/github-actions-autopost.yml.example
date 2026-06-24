@@ -1,0 +1,37 @@
+name: linkedin-autopost
+
+# Twice daily at 04:02 and 13:03 UTC (~09:32 and ~18:33 IST).
+# NOTE: GitHub Actions runs from datacenter IPs. Live LinkedIn posting and twitter-cli reading
+# from such IPs are far more likely to hit checkpoints/bans than running on your Mac.
+# Recommended: run research + generation here, but keep dry_run=true, OR run the whole thing
+# on your Mac via launchd (see deploy/). Flip to live only if you accept the risk.
+on:
+  schedule:
+    - cron: "2 4 * * *"
+    - cron: "3 13 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install chromium
+      - name: Run
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LI_AT: ${{ secrets.LI_AT }}
+        run: python src/main.py
+      - name: Persist dedupe state
+        run: |
+          git config user.name "autopost-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state/posted.json out/ || true
+          git commit -m "state: record posted item [skip ci]" || echo "nothing to commit"
+          git push || echo "push skipped"

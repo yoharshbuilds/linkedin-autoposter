@@ -1,0 +1,54 @@
+# LinkedIn auto-poster config
+
+# --- Models (all via OpenRouter, one key) ---
+text_model: "anthropic/claude-sonnet-4.6"      # post writer. swap to anthropic/claude-opus-4.8 for max quality
+image_model: "openai/gpt-5-image-mini"          # stat-card generator
+
+# --- Voice reference ---
+reference_handle: "Rahul_J_Mathur"
+fewshot_file: "reference/rahul_fewshot_top12.json"
+fewshot_count: 5
+
+# --- Topics we target (mirrors Rahul's beat) ---
+topics:
+  - Indian startups
+  - venture capital and fund returns
+  - fintech and BFSI
+  - AI and vertical AI
+  - SaaS
+  - consumer and food delivery (Swiggy, Zomato, Rapido, Blinkit)
+  - IPOs and exits
+  - Y Combinator India
+
+# keyword filter: an item must match at least one to be considered
+keywords: [startup, funding, raise, seed, series, vc, venture, fund, valuation,
+           ipo, acquisition, acqui, arr, revenue, fintech, upi, bank, ai, agent,
+           saas, swiggy, zomato, rapido, blinkit, zepto, india, founder, yc]
+
+# --- News sources (RSS = reliable, no login; used in cloud too) ---
+rss_feeds:
+  - https://inc42.com/feed/
+  - https://entrackr.com/feed/
+  - https://yourstory.com/feed
+  - https://techcrunch.com/category/venture/feed/
+  - https://techcrunch.com/category/artificial-intelligence/feed/
+
+# Twitter accounts to scan for fresh ecosystem news (optional, needs twitter-cli session)
+twitter_sources: [entrackr, Inc42, yourstory, moneycontrolcom]
+use_twitter_research: true
+
+recency_hours: 24        # HARD gate: only consider news published within this many hours
+strict_recency: true     # drop items with no parseable timestamp (no stale/undated items)
+
+# --- Hashtags (his actual set; a subset is chosen per post) ---
+hashtags: ["#startups", "#india", "#venturecapital", "#ai"]
+
+# --- Posting ---
+post_targets: [linkedin, twitter]   # where to publish each post
+twitter_max_chars: 280              # non-premium cap; tweet_text is trimmed to this
+dry_run: true            # true = save preview to out/, do NOT post. Flip to false to go live.
+image_style: >-
+  Clean professional LinkedIn infographic stat-card. Deep navy background (#0A1A2F).
+  Bold headline in white, one large highlighted number in gold (#F2B544), short subtext in light gray.
+  Minimal financial data-visualization aesthetic, generous spacing, crisp legible text, no clutter,
+  square 1:1. Do not invent numbers beyond those provided.
