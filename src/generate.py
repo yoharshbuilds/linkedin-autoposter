@@ -40,7 +40,7 @@ def _load_fewshot(cfg: dict) -> str:
     return "\n\n".join(lines)
 
 
-def generate(item: dict, cfg: dict, angle: str = "", template_hint: str = "") -> dict:
+def generate(item: dict, cfg: dict, angle: str = "", template_hint: str = "", facts: str = "") -> dict:
     style = open(STYLE_PATH).read()
     fewshot = _load_fewshot(cfg)
     source_block = (
@@ -50,16 +50,25 @@ def generate(item: dict, cfg: dict, angle: str = "", template_hint: str = "") ->
         f"Link: {item.get('url','')}\n"
         f"From: {item.get('source','')}\n"
     )
+    if facts:
+        source_block += f"\n{facts}\n"
     hint = ""
     if angle:
         hint += f"\nANGLE TO TAKE (his instinct): {angle}\n"
     if template_hint:
-        hint += f"SUGGESTED IMAGE TEMPLATE: {template_hint} (use it only if the source has the numbers).\n"
+        hint += f"SUGGESTED IMAGE TEMPLATE: {template_hint} (use it only if the numbers support it).\n"
+    numbers_rule = (
+        "Use the RESEARCH FACT SHEET numbers as the backbone of the post and the image. "
+        "Build the math image (returns_table or calc_worksheet) from the COMPUTED metric and its inputs. "
+        if facts else
+        "Use only facts and numbers present in the source. "
+    )
     user = (
         f"{fewshot}\n\n{source_block}{hint}\n"
         "Write ONE LinkedIn post about this source item, in the style and structure described. "
-        "Use only facts and numbers present in the source. Return STRICT JSON per the output format. "
-        "Remember: absolutely no em dashes."
+        f"{numbers_rule}"
+        "Never invent a number that is not in the source or fact sheet. Return STRICT JSON per the "
+        "output format. Remember: absolutely no em dashes."
     )
     raw = llm.chat(cfg["text_model"], [
         {"role": "system", "content": style},

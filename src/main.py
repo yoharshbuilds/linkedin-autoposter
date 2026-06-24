@@ -8,6 +8,7 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(__file__))
 import research
+import enrich
 import generate
 import scout
 import card
@@ -156,7 +157,20 @@ def run():
         print(f"  [warn] scoring failed ({e}); falling back to freshest")
         item = fresh[0]
 
-    data = generate.generate(item, cfg, angle=angle, template_hint=template_hint)
+    # research like Rahul: pull primary-source numbers + compute the metric BEFORE writing
+    fact_block = ""
+    try:
+        rsrch = enrich.research(item, cfg)
+        fact_block = enrich.factsheet_text(rsrch)
+        if rsrch.get("computed"):
+            print(f"  research: {len(rsrch.get('facts',[]))} facts, "
+                  f"computed {', '.join(c['metric'] for c in rsrch['computed'])}")
+        elif fact_block:
+            print(f"  research: {len(rsrch.get('facts',[]))} facts (no computable metric)")
+    except Exception as e:
+        print(f"  [warn] research skipped: {e}")
+
+    data = generate.generate(item, cfg, angle=angle, template_hint=template_hint, facts=fact_block)
     post_text = data["post_text"]
     print("\n----- POST -----\n" + post_text + "\n----------------\n")
 

@@ -3,6 +3,8 @@
 # --- Models (all via OpenRouter, one key) ---
 text_model: "anthropic/claude-sonnet-4.6"      # post writer. swap to anthropic/claude-opus-4.8 for max quality
 image_model: "openai/gpt-5-image-mini"          # stat-card generator
+research_model: "anthropic/claude-sonnet-4.6:online"  # web-enabled analyst (':online' = live web search)
+enable_research: true                           # research like Rahul (primary sources + show-the-math) before writing
 
 # --- Voice reference ---
 reference_handle: "Rahul_J_Mathur"
