@@ -57,6 +57,9 @@ def research(item: dict, cfg: dict) -> dict:
         "with its inputs. Use ONLY numbers you actually find. If a needed input is missing, set it to "
         "\"UNKNOWN\" and do not compute a metric that depends on it. Return STRICT JSON only:\n"
         "{\n"
+        '  "event_date": "YYYY-MM-DD of when the UNDERLYING EVENT actually happened (the deal/funding/'
+        'launch announcement), NOT when this article was published. Use web search to find the original '
+        'announcement date. \\"UNKNOWN\\" only if truly undeterminable.",\n'
         '  "facts": [{"point": "the fact with its number and period", "source": "filing/source name"}],\n'
         '  "computed": [{"metric": "MOIC", "value": "6.24x", "formula": "Rs 112.47 cr FMV / Rs 18.02 cr cost", "inputs_found": true}],\n'
         '  "nuance": "the angle/nuance the coverage missed (one line), or empty",\n'
@@ -81,6 +84,20 @@ def research(item: dict, cfg: dict) -> dict:
     data["computed"] = [c for c in data.get("computed", [])
                         if c.get("inputs_found") and "UNKNOWN" not in str(c.get("formula", ""))]
     return data
+
+
+def event_age_days(r: dict) -> float:
+    """Days since the underlying EVENT happened (from research). None if unknown."""
+    import datetime
+    raw = (r or {}).get("event_date", "")
+    m = re.search(r"\d{4}-\d{2}-\d{2}", str(raw))
+    if not m:
+        return None
+    try:
+        d = datetime.date.fromisoformat(m.group(0))
+    except ValueError:
+        return None
+    return (datetime.date.today() - d).days
 
 
 def factsheet_text(r: dict) -> str:

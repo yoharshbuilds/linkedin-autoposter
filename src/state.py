@@ -57,6 +57,20 @@ def recent_titles(n: int = 20) -> list:
     return [p.get("title", "") for p in posted[-n:] if p.get("title")]
 
 
+def mark_seen(item: dict, reason: str = "skipped") -> None:
+    """Remember an item we deliberately skipped (e.g. stale event) so we never re-pick or re-research it."""
+    state = _load()
+    state["posted"].append({
+        "key": item_key(item),
+        "title": item.get("title") or item.get("text", "")[:120],
+        "url": item.get("url"),
+        "skipped": reason,
+    })
+    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    with open(STATE_PATH, "w") as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+
+
 def record(item: dict, post_text: str, image_path: str, posted_at: str) -> None:
     state = _load()
     state["posted"].append({

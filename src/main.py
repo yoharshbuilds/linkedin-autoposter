@@ -138,37 +138,47 @@ def run():
         print("  nothing new to post. done.")
         return
 
-    # rank like Rahul (rubric), pick the highest-scoring fresh item
-    angle, template_hint = "", ""
+    # rank like Rahul (rubric)
+    min_score = cfg.get("min_score", 6)
     try:
         picks = scout.score_candidates(fresh, cfg, recent_titles=state.recent_titles())
-        picks = [p for p in picks if p.get("item")]
-        best = max(picks, key=lambda p: p.get("score", 0)) if picks else None
-        min_score = cfg.get("min_score", 6)
-        if best and best.get("score", 0) >= min_score:
-            item = best["item"]; angle = best.get("angle", ""); template_hint = best.get("template", "")
-            print(f"  chosen [{best['score']}/10]: {item['title'][:80]}  ({item['source']})")
-            print(f"  angle: {angle}")
-        else:
-            top = best['score'] if best else 'n/a'
-            print(f"  no fresh item scored >= {min_score} (top={top}). skipping this run.")
-            return
+        picks = [p for p in picks if p.get("item") and p.get("score", 0) >= min_score]
+        picks.sort(key=lambda p: p.get("score", 0), reverse=True)
     except Exception as e:
         print(f"  [warn] scoring failed ({e}); falling back to freshest")
-        item = fresh[0]
+        picks = [{"item": c, "score": 0, "angle": "", "template": ""} for c in fresh[:4]]
+    if not picks:
+        print(f"  no fresh item scored >= {min_score}. skipping this run.")
+        return
 
-    # research like Rahul: pull primary-source numbers + compute the metric BEFORE writing
-    fact_block = ""
-    try:
-        rsrch = enrich.research(item, cfg)
+    # research each candidate (in score order) and take the first whose UNDERLYING EVENT is recent.
+    # this catches freshly-published analysis/roundup pieces about old deals (article is new, news is not).
+    item = None; angle = ""; template_hint = ""; fact_block = ""
+    max_days = cfg.get("event_recency_days", 4)
+    for cand in picks[: cfg.get("research_candidates", 4)]:
+        it = cand["item"]
+        print(f"  candidate [{cand.get('score','?')}/10]: {it['title'][:80]}  ({it['source']})")
+        try:
+            rsrch = enrich.research(it, cfg)
+        except Exception as e:
+            print(f"  [warn] research failed ({e}); proceeding without event gate")
+            rsrch = {}
+        age = enrich.event_age_days(rsrch)
+        if age is not None and age > max_days:
+            print(f"  [stale] event ~{age}d ago ({rsrch.get('event_date')}) > {max_days}d. skipping.")
+            state.mark_seen(it, reason=f"stale-event-{age}d")  # don't re-research next run
+            continue
+        item = it; angle = cand.get("angle", ""); template_hint = cand.get("template", "")
         fact_block = enrich.factsheet_text(rsrch)
-        if rsrch.get("computed"):
-            print(f"  research: {len(rsrch.get('facts',[]))} facts, "
-                  f"computed {', '.join(c['metric'] for c in rsrch['computed'])}")
-        elif fact_block:
-            print(f"  research: {len(rsrch.get('facts',[]))} facts (no computable metric)")
-    except Exception as e:
-        print(f"  [warn] research skipped: {e}")
+        ev = rsrch.get("event_date", "?")
+        extra = (", computed " + ", ".join(c["metric"] for c in rsrch["computed"])) if rsrch.get("computed") else ""
+        print(f"  chosen: event {ev} (~{age}d), {len(rsrch.get('facts',[]))} facts{extra}")
+        print(f"  angle: {angle}")
+        break
+
+    if item is None:
+        print("  all top candidates were stale events. skipping this run.")
+        return
 
     data = generate.generate(item, cfg, angle=angle, template_hint=template_hint, facts=fact_block)
     post_text = data["post_text"]

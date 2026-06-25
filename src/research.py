@@ -1,5 +1,6 @@
 """Find fresh, on-topic news items via RSS (reliable) + twitter-cli (optional)."""
 import json
+import re
 import subprocess
 import time
 from datetime import datetime, timezone, timedelta
@@ -41,6 +42,19 @@ def _matches(text: str, keywords: list) -> bool:
     return any(k.lower() in t for k in keywords)
 
 
+# digest / roundup / opinion pieces revisit OLD events even when freshly published. Drop them.
+_DIGEST = re.compile(
+    r"(&|and)\s+more\b|round[\s-]?up|weekly|daily digest|this week|funding galore|"
+    r"top \d+|in \d+ charts|newsletter|recap|wrapped|year in review|explained|"
+    r"\bhow\b.*\bbuilt\b|deep dive|throwback",
+    re.I,
+)
+
+
+def _is_digest(title: str) -> bool:
+    return bool(_DIGEST.search(title or ""))
+
+
 def from_rss(cfg: dict) -> list:
     items = []
     for url in cfg.get("rss_feeds", []):
@@ -55,11 +69,14 @@ def from_rss(cfg: dict) -> list:
             dt = datetime.fromtimestamp(time.mktime(st), tz=timezone.utc) if st else None
             if not _within(dt, cfg):
                 continue
-            blob = f"{e.get('title','')} {e.get('summary','')}"
+            title = e.get("title", "").strip()
+            if _is_digest(title):
+                continue
+            blob = f"{title} {e.get('summary','')}"
             if not _matches(blob, cfg["keywords"]):
                 continue
             items.append({
-                "title": e.get("title", "").strip(),
+                "title": title,
                 "summary": _clean(e.get("summary", "")),
                 "url": e.get("link"),
                 "source": source,

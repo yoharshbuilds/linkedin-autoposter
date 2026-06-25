@@ -39,8 +39,10 @@ rss_feeds:
 twitter_sources: [entrackr, Inc42, yourstory, moneycontrolcom]
 use_twitter_research: true
 
-recency_hours: 24        # HARD gate: only consider news published within this many hours
+recency_hours: 24        # HARD gate: only consider ARTICLES published within this many hours
 strict_recency: true     # drop items with no parseable timestamp (no stale/undated items)
+event_recency_days: 4    # HARD gate on the EVENT: research finds when the deal/news actually happened; skip if older
+research_candidates: 4   # how many top-scored candidates to research (in order) before giving up a run
 
 # --- Hashtags (his actual set; a subset is chosen per post) ---
 hashtags: ["#startups", "#india", "#venturecapital", "#ai"]
