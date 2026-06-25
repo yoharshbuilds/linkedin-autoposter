@@ -64,6 +64,35 @@ def post_linkedin(post_text: str, image_path: str, cfg: dict) -> dict:
         return {"target": "linkedin", "mode": "live", "ok": False, "detail": f"playwright error: {e}"}
 
 
+def _open_composer(page) -> bool:
+    """Open the 'Start a post' composer, robust to LinkedIn markup changes.
+
+    Returns True once the editor is visible. Tries the current div[aria-label] trigger
+    first, then older button/text variants.
+    """
+    page.wait_for_timeout(1500)
+    editor = '.ql-editor, div[role="textbox"][contenteditable="true"]'
+    strategies = [
+        lambda: page.locator('div[aria-label="Start a post"]').first,
+        lambda: page.locator('button:has-text("Start a post")').first,
+        lambda: page.get_by_role("button", name="Start a post").first,
+        lambda: page.get_by_text("Start a post", exact=False).first.locator(
+            'xpath=ancestor-or-self::*[self::button or @role="button" or @aria-label][1]'),
+    ]
+    for make in strategies:
+        try:
+            trigger = make()
+            if not trigger.count():
+                continue
+            trigger.scroll_into_view_if_needed(timeout=4000)
+            trigger.click(timeout=8000)
+            page.wait_for_selector(editor, state="visible", timeout=8000)
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def _playwright_post(post_text, image_path, cfg):
     """Publish via the dedicated, persistently-logged-in Chrome profile (trusted session)."""
     from playwright.sync_api import sync_playwright
@@ -83,10 +112,11 @@ def _playwright_post(post_text, image_path, cfg):
             ctx.close()
             return {"target": "linkedin", "mode": "live", "ok": False,
                     "detail": f"session expired ({page.url}); rerun the one-time login"}
-        # open composer (button ancestor of the 'Start a post' text)
-        page.get_by_text("Start a post", exact=False).first.locator(
-            'xpath=ancestor-or-self::*[self::button or @role="button"][1]').click(timeout=12000)
-        page.wait_for_timeout(3000)
+        # open composer. LinkedIn's trigger markup changes; try several strategies in order.
+        if not _open_composer(page):
+            ctx.close()
+            return {"target": "linkedin", "mode": "live", "ok": False,
+                    "detail": "could not open composer (LinkedIn markup may have changed)"}
         ed = page.locator('.ql-editor, div[role="textbox"][contenteditable="true"]').first
         ed.click()
         page.keyboard.insert_text(post_text)
