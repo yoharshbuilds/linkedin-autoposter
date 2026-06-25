@@ -8,6 +8,7 @@
 """
 import os
 import json
+import re
 import subprocess
 import datetime
 
@@ -64,18 +65,45 @@ def post_linkedin(post_text: str, image_path: str, cfg: dict) -> dict:
         return {"target": "linkedin", "mode": "live", "ok": False, "detail": f"playwright error: {e}"}
 
 
-def _open_composer(page) -> bool:
-    """Open the 'Start a post' composer, robust to LinkedIn markup changes.
+_EDITOR = '.ql-editor, div[role="textbox"][contenteditable="true"]'
 
-    Returns True once the editor is visible. Tries the current div[aria-label] trigger
-    first, then older button/text variants.
-    """
+
+def _save_debug(page, tag: str) -> str:
+    """Screenshot + a slice of DOM on failure, so a future LinkedIn UI change is diagnosable."""
+    try:
+        os.makedirs(_out_dir(), exist_ok=True)
+        shot = os.path.join(_out_dir(), f"li-fail-{tag}-{_stamp()}.png")
+        page.screenshot(path=shot)
+        return shot
+    except Exception:
+        return ""
+
+
+def _first_visible(page, locator):
+    """Return the first visible+enabled element of a locator, or None."""
+    try:
+        n = locator.count()
+    except Exception:
+        return None
+    for i in range(n):
+        el = locator.nth(i)
+        try:
+            if el.is_visible() and el.is_enabled():
+                return el
+        except Exception:
+            continue
+    return None
+
+
+def _open_composer(page) -> bool:
+    """Open the 'Start a post' composer, robust to LinkedIn markup changes."""
     page.wait_for_timeout(1500)
-    editor = '.ql-editor, div[role="textbox"][contenteditable="true"]'
     strategies = [
-        lambda: page.locator('div[aria-label="Start a post"]').first,
-        lambda: page.locator('button:has-text("Start a post")').first,
-        lambda: page.get_by_role("button", name="Start a post").first,
+        lambda: page.locator('div[aria-label="Start a post"]'),
+        lambda: page.locator('button[aria-label="Start a post"]'),
+        lambda: page.locator('button:has-text("Start a post")'),
+        lambda: page.locator('.share-box-feed-entry__trigger'),
+        lambda: page.get_by_role("button", name="Start a post"),
         lambda: page.get_by_text("Start a post", exact=False).first.locator(
             'xpath=ancestor-or-self::*[self::button or @role="button" or @aria-label][1]'),
     ]
@@ -84,73 +112,146 @@ def _open_composer(page) -> bool:
             trigger = make()
             if not trigger.count():
                 continue
-            trigger.scroll_into_view_if_needed(timeout=4000)
-            trigger.click(timeout=8000)
-            page.wait_for_selector(editor, state="visible", timeout=8000)
+            el = _first_visible(page, trigger) or trigger.first
+            el.scroll_into_view_if_needed(timeout=4000)
+            el.click(timeout=8000)
+            page.wait_for_selector(_EDITOR, state="visible", timeout=8000)
             return True
         except Exception:
             continue
     return False
 
 
-def _playwright_post(post_text, image_path, cfg):
-    """Publish via the dedicated, persistently-logged-in Chrome profile (trusted session)."""
-    from playwright.sync_api import sync_playwright
-    profile = os.path.abspath(LI_PROFILE)
-    headless = cfg.get("headless", False)  # headful is more reliable / lower flag risk
-    launch = dict(user_data_dir=profile, headless=headless, viewport={"width": 1300, "height": 950},
-                  args=["--disable-blink-features=AutomationControlled"])
-    with sync_playwright() as pw:
+def _attach_image(page, image_path: str) -> bool:
+    """Attach an image. Tries the hidden file input directly, then the add-media button chooser."""
+    if not (image_path and os.path.exists(image_path)):
+        return True  # nothing to attach is not a failure
+    # strategy A: set the hidden <input type=file> directly (most robust, no chooser dialog)
+    try:
+        inp = page.locator('input[type="file"]')
+        if inp.count():
+            inp.first.set_input_files(image_path)
+            page.wait_for_timeout(3500)
+            _advance_next(page)
+            return True
+    except Exception:
+        pass
+    # strategy B: click an add-media button and catch the OS file chooser
+    for sel in ('div[role=dialog] button[aria-label="Add media"]',
+                'button[aria-label="Add a photo"]',
+                'button[aria-label*="media" i]',
+                'button[aria-label*="photo" i]'):
         try:
-            ctx = pw.chromium.launch_persistent_context(channel="chrome", **launch)
+            btn = _first_visible(page, page.locator(sel))
+            if not btn:
+                continue
+            with page.expect_file_chooser(timeout=9000) as fc:
+                btn.click()
+            fc.value.set_files(image_path)
+            page.wait_for_timeout(3500)
+            _advance_next(page)
+            return True
         except Exception:
-            ctx = pw.chromium.launch_persistent_context(**launch)
-        page = ctx.pages[0] if ctx.pages else ctx.new_page()
-        page.goto("https://www.linkedin.com/feed/", wait_until="load")
-        page.wait_for_timeout(7000)
-        if "login" in page.url or "checkpoint" in page.url or "authwall" in page.url:
-            ctx.close()
+            continue
+    return False
+
+
+def _advance_next(page):
+    """Click through any 'Next' step in the media editor back to the main composer."""
+    for _ in range(3):
+        nx = _first_visible(page, page.locator('div[role=dialog] button:has-text("Next")'))
+        if not nx:
+            return
+        try:
+            nx.click(); page.wait_for_timeout(1800)
+        except Exception:
+            return
+
+
+def _click_post(page) -> bool:
+    """Click the primary publish button (exact 'Post', never 'Post to Anyone')."""
+    for make in (
+        lambda: page.get_by_role("button", name="Post", exact=True),
+        lambda: page.locator('div[role=dialog] button.share-actions__primary-action'),
+        lambda: page.locator('button:has-text("Post")'),
+    ):
+        try:
+            btn = _first_visible(page, make())
+        except Exception:
+            btn = None
+        if btn:
+            try:
+                btn.click(); return True
+            except Exception:
+                continue
+    return False
+
+
+def _attempt(pw, post_text, image_path, cfg) -> dict:
+    profile = os.path.abspath(LI_PROFILE)
+    launch = dict(user_data_dir=profile, headless=cfg.get("headless", False),
+                  viewport={"width": 1300, "height": 950},
+                  args=["--disable-blink-features=AutomationControlled"])
+    try:
+        ctx = pw.chromium.launch_persistent_context(channel="chrome", **launch)
+    except Exception:
+        ctx = pw.chromium.launch_persistent_context(**launch)
+    page = ctx.pages[0] if ctx.pages else ctx.new_page()
+    try:
+        page.goto("https://www.linkedin.com/feed/", wait_until="domcontentloaded", timeout=45000)
+        page.wait_for_timeout(6000)
+        if any(x in page.url for x in ("/login", "/checkpoint", "/authwall", "/uas/")):
             return {"target": "linkedin", "mode": "live", "ok": False,
                     "detail": f"session expired ({page.url}); rerun the one-time login"}
-        # open composer. LinkedIn's trigger markup changes; try several strategies in order.
         if not _open_composer(page):
-            ctx.close()
             return {"target": "linkedin", "mode": "live", "ok": False,
-                    "detail": "could not open composer (LinkedIn markup may have changed)"}
-        ed = page.locator('.ql-editor, div[role="textbox"][contenteditable="true"]').first
+                    "detail": f"could not open composer (markup changed?); debug: {_save_debug(page,'composer')}"}
+        ed = page.locator(_EDITOR).first
         ed.click()
         page.keyboard.insert_text(post_text)
         page.wait_for_timeout(1200)
-        if image_path and os.path.exists(image_path):
-            try:
-                with page.expect_file_chooser(timeout=9000) as fc:
-                    page.locator('div[role=dialog] button[aria-label="Add media"]').first.click()
-                fc.value.set_files(image_path)
-                page.wait_for_timeout(3500)
-                for _ in range(2):  # advance media editor if it shows "Next"
-                    nx = page.locator('div[role=dialog] button:has-text("Next")').first
-                    if nx.count() and nx.is_visible():
-                        nx.click(); page.wait_for_timeout(2000)
-                    else:
-                        break
-            except Exception as e:
-                print(f"[warn] LI image attach failed, posting text only: {e}")
-        # primary publish button = exact name 'Post' (avoids 'Post to Anyone')
-        target = None
-        pb = page.get_by_role("button", name="Post", exact=True)
-        for i in range(pb.count()):
-            b = pb.nth(i)
-            if b.is_visible() and b.is_enabled():
-                target = b
-        if not target:
-            ctx.close()
-            return {"target": "linkedin", "mode": "live", "ok": False, "detail": "no enabled Post button"}
-        target.click()
-        page.wait_for_timeout(7000)
-        ok = page.locator('.ql-editor').count() == 0  # composer closed => published
-        ctx.close()
+        img_note = ""
+        if not _attach_image(page, image_path):
+            img_note = " (image attach failed, posted text only)"
+            print(f"  [warn] LI image attach failed; debug: {_save_debug(page,'image')}")
+        if not _click_post(page):
+            return {"target": "linkedin", "mode": "live", "ok": False,
+                    "detail": f"no enabled Post button; debug: {_save_debug(page,'postbtn')}"}
+        # verify the composer actually closed (= published)
+        try:
+            page.wait_for_selector(_EDITOR, state="detached", timeout=12000)
+            ok = True
+        except Exception:
+            ok = page.locator(_EDITOR).count() == 0
+        if not ok:
+            _save_debug(page, "verify")
         return {"target": "linkedin", "mode": "live", "ok": ok,
-                "detail": "posted" if ok else "composer still open (post may not have sent)"}
+                "detail": ("posted" + img_note) if ok else "composer still open (post may not have sent)"}
+    finally:
+        try:
+            ctx.close()
+        except Exception:
+            pass
+
+
+def _playwright_post(post_text, image_path, cfg):
+    """Publish via the persistently-logged-in Chrome profile. Retries once on failure."""
+    from playwright.sync_api import sync_playwright
+    attempts = int(cfg.get("li_attempts", 2))
+    last = {"target": "linkedin", "mode": "live", "ok": False, "detail": "no attempt made"}
+    for i in range(attempts):
+        with sync_playwright() as pw:
+            try:
+                last = _attempt(pw, post_text, image_path, cfg)
+            except Exception as e:
+                last = {"target": "linkedin", "mode": "live", "ok": False, "detail": f"exception: {e}"}
+        if last.get("ok"):
+            if i:
+                last["detail"] += f" (on retry {i+1})"
+            return last
+        if i + 1 < attempts:
+            print(f"  [retry] LinkedIn attempt {i+1} failed: {last['detail']}")
+    return last
 
 
 # ---------------- dispatcher ----------------
