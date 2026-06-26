@@ -57,6 +57,22 @@ def recent_titles(n: int = 20) -> list:
     return [p.get("title", "") for p in posted[-n:] if p.get("title")]
 
 
+def _recent_posted(n: int) -> list:
+    """Most recent entries that were actually posted (ignore skipped/stale markers)."""
+    posted = [p for p in _load()["posted"] if not p.get("skipped")]
+    return posted[-n:]
+
+
+def recent_types(n: int = 3) -> list:
+    """content_type of the last n posts, newest last (for rotation)."""
+    return [p.get("content_type", "") for p in _recent_posted(n) if p.get("content_type")]
+
+
+def recent_templates(n: int = 3) -> list:
+    """image template of the last n posts, newest last (for creative rotation)."""
+    return [p.get("template", "") for p in _recent_posted(n) if p.get("template")]
+
+
 def mark_seen(item: dict, reason: str = "skipped") -> None:
     """Remember an item we deliberately skipped (e.g. stale event) so we never re-pick or re-research it."""
     state = _load()
@@ -71,7 +87,8 @@ def mark_seen(item: dict, reason: str = "skipped") -> None:
         json.dump(state, f, indent=2, ensure_ascii=False)
 
 
-def record(item: dict, post_text: str, image_path: str, posted_at: str) -> None:
+def record(item: dict, post_text: str, image_path: str, posted_at: str,
+           content_type: str = "", template: str = "") -> None:
     state = _load()
     state["posted"].append({
         "key": item_key(item),
@@ -79,6 +96,8 @@ def record(item: dict, post_text: str, image_path: str, posted_at: str) -> None:
         "url": item.get("url"),
         "posted_at": posted_at,
         "image": image_path,
+        "content_type": content_type,
+        "template": template,
     })
     os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
     with open(STATE_PATH, "w") as f:

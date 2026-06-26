@@ -31,8 +31,13 @@ def _cfg():
     return yaml.safe_load(open(os.path.join(ROOT, "config.yaml")))
 
 
-def score_candidates(items: list, cfg: dict, top_n: int = 12, recent_titles: list = None) -> list:
+def score_candidates(items: list, cfg: dict, top_n: int = 12, recent_titles: list = None,
+                     recent_types: list = None, recent_templates: list = None) -> list:
     rubric = open(os.path.join(ROOT, "reference", "news_taste.md")).read()
+    try:
+        rotation = open(os.path.join(ROOT, "reference", "content_rotation.md")).read()
+    except FileNotFoundError:
+        rotation = ""
     items = items[:25]
     listing = "\n".join(
         f"[{i}] ({c.get('source','')}) {c.get('title','')} :: {c.get('summary','')[:160]}"
@@ -43,11 +48,25 @@ def score_candidates(items: list, cfg: dict, top_n: int = 12, recent_titles: lis
         already = ("\n\nALREADY POSTED RECENTLY (give score 0 to any candidate that is the SAME "
                    "underlying story as any of these, even if worded differently / different source):\n"
                    + "\n".join(f"- {t}" for t in recent_titles) + "\n")
+    rotate = ""
+    if recent_types or recent_templates:
+        rotate = (
+            "\n\nROTATION (avoid repetition, this matters):\n"
+            f"- content_type of the last posts (newest last): {recent_types or []}\n"
+            f"- image template of the last posts (newest last): {recent_templates or []}\n"
+            "Penalize candidates whose content_type matches the last 2, and whose template matches "
+            "the last 1. Actively prefer a DIFFERENT content type and creative format. Do not pick a "
+            "funding/returns story if the last post was already funding/returns, unless it is "
+            "exceptional and nothing else is fresh.\n"
+        )
     prompt = (
-        f"{rubric}\n{already}\n"
+        f"{rubric}\n\n{rotation}\n{already}{rotate}\n"
         f"CANDIDATE NEWS ITEMS:\n{listing}\n\n"
-        "Score EACH item the way Rahul Mathur would, using the rubric. Return STRICT JSON: "
+        "Score EACH item the way Rahul Mathur would, using the rubric AND the rotation rule. "
+        "Return STRICT JSON: "
         '{\"picks\":[{\"i\":<index>,\"score\":<0-10>,\"angle\":\"the one-line angle Rahul would take\",'
+        '\"content_type\":\"vc_returns|funding_round|unit_economics|financials_growth|product_app|'
+        'ai_thesis|founder_operator|market_contrarian|ipo_exit|shutdown_failure|milestone_people\",'
         '\"template\":\"returns_table|bar_chart|calc_worksheet|app_showdown|tweet_card|photo|thesis_card|none\"}]} '
         "Include ALL items, sorted by score descending."
     )

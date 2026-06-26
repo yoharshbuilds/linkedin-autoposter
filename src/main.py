@@ -141,7 +141,9 @@ def run():
     # rank like Rahul (rubric)
     min_score = cfg.get("min_score", 6)
     try:
-        picks = scout.score_candidates(fresh, cfg, recent_titles=state.recent_titles())
+        picks = scout.score_candidates(
+            fresh, cfg, recent_titles=state.recent_titles(),
+            recent_types=state.recent_types(3), recent_templates=state.recent_templates(3))
         picks = [p for p in picks if p.get("item") and p.get("score", 0) >= min_score]
         picks.sort(key=lambda p: p.get("score", 0), reverse=True)
     except Exception as e:
@@ -153,7 +155,7 @@ def run():
 
     # research each candidate (in score order) and take the first whose UNDERLYING EVENT is recent.
     # this catches freshly-published analysis/roundup pieces about old deals (article is new, news is not).
-    item = None; angle = ""; template_hint = ""; fact_block = ""
+    item = None; angle = ""; template_hint = ""; fact_block = ""; content_type = ""
     max_days = cfg.get("event_recency_days", 4)
     for cand in picks[: cfg.get("research_candidates", 4)]:
         it = cand["item"]
@@ -169,6 +171,7 @@ def run():
             state.mark_seen(it, reason=f"stale-event-{age}d")  # don't re-research next run
             continue
         item = it; angle = cand.get("angle", ""); template_hint = cand.get("template", "")
+        content_type = cand.get("content_type", "")
         fact_block = enrich.factsheet_text(rsrch)
         ev = rsrch.get("event_date", "?")
         extra = (", computed " + ", ".join(c["metric"] for c in rsrch["computed"])) if rsrch.get("computed") else ""
@@ -202,8 +205,11 @@ def run():
         print(f"  {r['target']} [{r['mode']}]: {'OK' if r['ok'] else 'FAILED'} - {r['detail']}")
 
     if ok_any and not cfg.get("dry_run"):
-        state.record(item, post_text, img_path, datetime.datetime.now(datetime.timezone.utc).isoformat())
-        print("  recorded in state.")
+        used_template = (data.get("image") or {}).get("template", template)
+        state.record(item, post_text, img_path,
+                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                     content_type=content_type, template=used_template)
+        print(f"  recorded in state. (type={content_type}, template={used_template})")
     elif cfg.get("dry_run"):
         print("  dry run: not recorded (live run can still post this).")
 
